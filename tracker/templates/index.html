@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Applications · Tracker{% endblock %}
+{% block content %}
+
+{% macro qs(overrides={}) -%}
+  {%- set params = {} -%}
+  {%- if request.args.get('status') %}{%- set _ = params.update({'status': request.args.get('status')}) %}{%- endif -%}
+  {%- if request.args.get('q') %}{%- set _ = params.update({'q': request.args.get('q')}) %}{%- endif -%}
+  {%- if request.args.get('location') %}{%- set _ = params.update({'location': request.args.get('location')}) %}{%- endif -%}
+  {%- if request.args.get('follow_up') %}{%- set _ = params.update({'follow_up': request.args.get('follow_up')}) %}{%- endif -%}
+  {%- if request.args.get('sort') %}{%- set _ = params.update({'sort': request.args.get('sort')}) %}{%- endif -%}
+  {%- if request.args.get('dir') %}{%- set _ = params.update({'dir': request.args.get('dir')}) %}{%- endif -%}
+  {%- for k, v in overrides.items() -%}
+    {%- if v is none -%}
+      {%- set _ = params.pop(k, none) -%}
+    {%- else -%}
+      {%- set _ = params.update({k: v}) -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {{- url_for('index', **params) -}}
+{%- endmacro %}
+
+{% macro sort_header(col, label, default_dir='desc') -%}
+  {%- set active = (sort == col) -%}
+  {%- set next_dir = ('asc' if (active and direction == 'desc') else ('desc' if (active and direction == 'asc') else default_dir)) -%}
+  <a href="{{ qs({'sort': col, 'dir': next_dir}) }}" class="sort{% if active %} active{% endif %}">
+    {{ label }}{% if active %}<span class="arrow">{{ '▾' if direction == 'desc' else '▴' }}</span>{% endif %}
+  </a>
+{%- endmacro %}
+
+<section class="counts">
+  <a href="{{ qs({'status': none}) }}" class="count total{% if not status_filter %} active{% endif %}">{{ total }} all</a>
+  {% for s in statuses %}
+    {% if counts.get(s, 0) %}
+      <a href="{{ qs({'status': s}) }}" class="count pill pill-{{ s }}{% if status_filter == s %} active{% endif %}">{{ counts[s] }} {{ s }}</a>
+    {% endif %}
+  {% endfor %}
+</section>
+
+{% if follow_ups and not follow_up_only %}
+<aside class="callout follow-up-banner">
+  <div class="callout-head">
+    <strong>{{ follow_ups|length }} waiting on a reply</strong>
+    <a class="callout-action" href="{{ qs({'follow_up': '1'}) }}">Show only these</a>
+  </div>
+  <ul class="follow-up-list">
+    {% for r in follow_ups[:5] %}
+      <li>
+        <a href="{{ url_for('detail', slug=r.slug) }}"><strong>{{ r.company }}</strong></a>
+        — {{ r.follow_up.round.stage }}, {{ r.follow_up.days_since }} days ago
+      </li>
+    {% endfor %}
+    {% if follow_ups|length > 5 %}
+      <li class="muted">+ {{ follow_ups|length - 5 }} more</li>
+    {% endif %}
+  </ul>
+</aside>
+{% endif %}
+
+<form class="toolbar" method="get" action="{{ url_for('index') }}">
+  {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+  {% if sort and sort != 'date_applied' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+  {% if direction and direction != 'desc' %}<input type="hidden" name="dir" value="{{ direction }}">{% endif %}
+  <input type="search" name="q" placeholder="Search company, slug, or role" value="{{ search }}">
+  <select name="location" onchange="this.form.submit()">
+    <option value="">Any location</option>
+    {% for t in location_types %}
+      <option value="{{ t }}" {% if location_filter == t %}selected{% endif %}>{{ t }}</option>
+    {% endfor %}
+  </select>
+  <label class="toggle">
+    <input type="checkbox" name="follow_up" value="1" {% if follow_up_only %}checked{% endif %} onchange="this.form.submit()">
+    Needs follow-up
+  </label>
+  <button type="submit">Apply</button>
+  {% if status_filter or search or location_filter or follow_up_only or (sort and sort != 'date_applied') %}
+    <a class="toolbar-clear" href="{{ url_for('index') }}">Reset</a>
+  {% endif %}
+</form>
+
+<table class="apps">
+  <thead>
+    <tr>
+      <th>{{ sort_header('company', 'Company', 'asc') }}</th>
+      <th>{{ sort_header('role', 'Role', 'asc') }}</th>
+      <th>Salary</th>
+      <th>Location</th>
+      <th>{{ sort_header('status', 'Status') }}</th>
+      <th>{{ sort_header('date_applied', 'Applied') }}</th>
+      <th>{{ sort_header('last_activity', 'Last activity') }}</th>
+      <th>{{ sort_header('follow_up', 'Follow-up') }}</th>
+      <th>JD</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr{% if row.follow_up %} class="needs-followup"{% endif %}>
+        <td data-label="Company">
+          <a href="{{ url_for('detail', slug=row.slug) }}">{{ row.company }}</a>
+          <div class="slug">{{ row.slug }}</div>
+        </td>
+        <td data-label="Role">{{ row.role or "" }}</td>
+        <td data-label="Salary" class="num">{{ row.salary_range or "" }}</td>
+        <td data-label="Location">
+          {% if row.location_type %}
+            <span class="pill pill-loc-{{ row.location_type }}">{{ row.location_type }}</span>
+          {% endif %}
+        </td>
+        <td data-label="Status"><span class="pill pill-{{ row.status }}">{{ row.status }}</span></td>
+        <td data-label="Applied" class="num">{{ row.date_applied or "" }}</td>
+        <td data-label="Last activity">
+          {% if row.last_round %}
+            <div class="last-round">
+              <span class="stage">{{ row.last_round.stage }}</span>
+              <span class="pill pill-state-{{ row.last_round_state }}">{{ row.last_round_state | state_label }}</span>
+            </div>
+          {% endif %}
+        </td>
+        <td data-label="Follow-up">
+          {% if row.follow_up %}
+            <span class="pill pill-follow-up" title="Last activity {{ row.follow_up.days_since }} days ago">
+              {{ row.follow_up.days_since }}d
+            </span>
+          {% endif %}
+        </td>
+        <td data-label="JD">
+          {% if row.jd_url %}
+            <a class="jd" href="{{ row.jd_url }}" target="_blank" rel="noopener">link</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="9" class="empty">No applications matched. <a href="{{ url_for('index') }}">Clear filters</a> or <a href="{{ url_for('new') }}">add one</a>.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

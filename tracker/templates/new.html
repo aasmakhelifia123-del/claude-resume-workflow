@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}New application · Tracker{% endblock %}
+{% block content %}
+
+<a class="back" href="{{ url_for('index') }}">← all applications</a>
+
+<h1>New application</h1>
+
+<form method="post" action="{{ url_for('new') }}" class="grid-form">
+  <label>Slug (folder name)
+    <input type="text" name="slug" pattern="[a-z0-9-]+" required
+           placeholder="lowercase-kebab-case">
+  </label>
+  <label>Company
+    <input type="text" name="company" required>
+  </label>
+  <label>Role
+    <input type="text" name="role">
+  </label>
+  <label>JD URL
+    <input type="url" name="jd_url">
+  </label>
+  <label>Salary range
+    <input type="text" name="salary_range" placeholder="e.g. $150–180k">
+  </label>
+  <label>Location type
+    <select name="location_type">
+      <option value="">—</option>
+      {% for t in location_types %}
+        <option value="{{ t }}">{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Status
+    <select name="status">
+      {% for s in statuses %}
+        <option value="{{ s }}" {% if s == 'draft' %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Date applied
+    <input type="date" name="date_applied">
+  </label>
+  <label class="full">Notes
+    <textarea name="notes" rows="6"></textarea>
+  </label>
+  <div class="actions">
+    <button type="submit" class="primary">Create</button>
+  </div>
+</form>
+
+{% endblock %}

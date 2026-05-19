@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ month_label }} · Tracker{% endblock %}
+{% block content %}
+
+<header class="cal-head">
+  <h1>{{ month_label }}</h1>
+  <nav class="cal-nav">
+    <a href="{{ url_for('calendar_view', month=prev_month) }}">‹ Prev</a>
+    <a href="{{ url_for('calendar_view') }}">Today</a>
+    <a href="{{ url_for('calendar_view', month=next_month) }}">Next ›</a>
+  </nav>
+</header>
+
+<div class="cal-grid">
+  {% for label in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+    <div class="cal-dow">{{ label }}</div>
+  {% endfor %}
+  {% for week in weeks %}
+    {% for d in week %}
+      {% set in_month = (d.month == month_first.month) %}
+      {% set cell = by_day.get(d.day, {'rounds': [], 'applied': []}) if in_month else {'rounds': [], 'applied': []} %}
+      <div class="cal-cell{% if not in_month %} cal-cell-other{% endif %}{% if d == today %} cal-cell-today{% endif %}">
+        <div class="cal-daynum">
+          {{ d.day }}
+          {% if in_month and cell.applied %}
+            <span class="cal-applied-dots" title="{{ cell.applied|length }} applied">
+              {% for _ in cell.applied %}<span class="cal-dot"></span>{% endfor %}
+            </span>
+          {% endif %}
+        </div>
+        {% if in_month %}
+          {% for r in cell.rounds %}
+            <a class="cal-chip pill-state-{{ r.state }}"
+               href="{{ url_for('detail', slug=r.slug) }}"
+               title="{{ r.company }} — {{ r.stage }}{% if r.time %} at {{ r.time }}{% endif %}">
+              {% if r.time %}<span class="cal-time">{{ r.time }}</span>{% endif %}
+              <span class="cal-co">{{ r.company }}</span>
+              <span class="cal-stage">{{ r.stage }}</span>
+            </a>
+          {% endfor %}
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endfor %}
+</div>
+
+<p class="muted small cal-legend">
+  Chips are interviews (color = state). Dots under the day number mark
+  applications submitted that day.
+</p>
+
+{% endblock %}

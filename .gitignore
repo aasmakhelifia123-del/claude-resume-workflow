@@ -1,0 +1,14 @@
+.DS_Store
+*.pdf
+__pycache__/
+*.pyc
+.venv/
+venv/
+.claude/
+tracker.db
+
+# Your own application folders. Keep the example-company folder
+# committed so contributors see the layout; everything else is yours
+# and shouldn't end up in the public repo.
+applications/*
+!applications/example-company/

@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}{{ row.company }} · Tracker{% endblock %}
+{% block content %}
+
+{% set follow_up = follow_up if follow_up is defined else None %}
+
+<a class="back" href="{{ url_for('index') }}">← all applications</a>
+
+<header class="detail-head">
+  <h1>{{ row.company }} <span class="slug">{{ row.slug }}</span></h1>
+  <span class="pill pill-{{ row.status }} big">{{ row.status }}</span>
+</header>
+
+<section class="columns">
+
+  <div class="col main">
+    <h2>Details</h2>
+    <form method="post" action="{{ url_for('edit', slug=row.slug) }}" class="grid-form">
+      <label>Company
+        <input type="text" name="company" value="{{ row.company }}" required>
+      </label>
+      <label>Role
+        <input type="text" name="role" value="{{ row.role or '' }}">
+      </label>
+      <label>JD URL
+        <input type="url" name="jd_url" value="{{ row.jd_url or '' }}">
+      </label>
+      <label>Salary range
+        <input type="text" name="salary_range" value="{{ row.salary_range or '' }}"
+               placeholder="e.g. $150–180k">
+      </label>
+      <label>Location type
+        <select name="location_type">
+          <option value="">—</option>
+          {% for t in location_types %}
+            <option value="{{ t }}" {% if t == row.location_type %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Status
+        <select name="status">
+          {% for s in statuses %}
+            <option value="{{ s }}" {% if s == row.status %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Date applied
+        <input type="date" name="date_applied" value="{{ row.date_applied or '' }}">
+      </label>
+      <label class="full">Notes
+        <textarea name="notes" rows="8">{{ row.notes or '' }}</textarea>
+      </label>
+      <div class="actions">
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+
+    <h2>Job description</h2>
+    <p class="muted small">Saved to <code>applications/{{ row.slug }}/jd.md</code>.</p>
+    <form method="post" action="{{ url_for('edit_jd', slug=row.slug) }}" class="jd-form">
+      <textarea name="jd_text" rows="14" placeholder="Paste the JD here…">{{ jd_text }}</textarea>
+      <div class="actions">
+        <button type="submit">Save JD</button>
+      </div>
+    </form>
+
+    <h2>Interview rounds</h2>
+    {% if follow_up %}
+      <aside class="callout follow-up-callout">
+        <p>
+          <strong>Time to follow up.</strong>
+          You haven't heard back since the <em>{{ follow_up.round.stage }}</em>
+          {% if follow_up.round.scheduled_at %}
+            on {{ follow_up.round.scheduled_at[:10] }}
+          {% endif %}
+          — {{ follow_up.days_since }} days ago.
+        </p>
+        <form method="post" action="{{ url_for('round_log_followup', round_id=follow_up.round.id) }}" class="followup-form">
+          <input type="text" name="note" placeholder="Optional: what you did (e.g. 'emailed Julian')">
+          <select name="snooze">
+            <option value="3">Snooze 3 days</option>
+            <option value="7" selected>Snooze 7 days</option>
+            <option value="14">Snooze 14 days</option>
+            <option value="dismiss">Dismiss</option>
+          </select>
+          <button type="submit">Log follow-up</button>
+        </form>
+      </aside>
+    {% endif %}
+    {% if rounds %}
+      <ul class="rounds">
+        {% for r in rounds %}
+          {% set state = r | round_state %}
+          <li>
+            <div class="round-meta">
+              <span class="pill pill-state-{{ state }}">{{ state | state_label }}</span>
+              {% if r.scheduled_at %}
+                <span class="muted small">{{ r.scheduled_at[:16].replace('T', ' ') }}</span>
+              {% endif %}
+            </div>
+            <form method="post" action="{{ url_for('round_edit', round_id=r.id) }}" class="round-form">
+              <input type="text" name="stage" value="{{ r.stage }}" placeholder="Stage" required>
+              <input type="datetime-local" name="scheduled_at"
+                     value="{{ (r.scheduled_at or '')[:16] }}">
+              <select name="outcome">
+                {% for o in outcomes %}
+                  <option value="{{ o }}" {% if o == r.outcome %}selected{% endif %}>{{ o }}</option>
+                {% endfor %}
+              </select>
+              <textarea name="notes" rows="2" placeholder="Notes">{{ r.notes or '' }}</textarea>
+              <div class="round-actions">
+                <button type="submit">Save</button>
+              </div>
+            </form>
+            <form method="post" action="{{ url_for('round_delete', round_id=r.id) }}" class="inline-delete">
+              <button type="submit" class="danger" onclick="return confirm('Delete this round?')">Delete</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No rounds yet.</p>
+    {% endif %}
+
+    <h3>Add round</h3>
+    <form method="post" action="{{ url_for('round_new', slug=row.slug) }}" class="round-form new">
+      <input type="text" name="stage" placeholder="Stage (e.g. Recruiter screen)" required>
+      <input type="datetime-local" name="scheduled_at">
+      <select name="outcome">
+        {% for o in outcomes %}<option value="{{ o }}">{{ o }}</option>{% endfor %}
+      </select>
+      <textarea name="notes" rows="2" placeholder="Notes"></textarea>
+      <div class="round-actions">
+        <button type="submit" class="primary">Add</button>
+      </div>
+    </form>
+  </div>
+
+  <aside class="col side">
+    <h2>Folder</h2>
+    <code class="folder">{{ folder }}/</code>
+    <ul class="assets">
+      <li>jd.md: {{ "✓" if assets.jd_md else "—" }}</li>
+      <li>resume.md: {{ "✓" if assets.resume_md else "—" }}</li>
+      <li>cover-letter.md: {{ "✓" if assets.cover_letter_md else "—" }}</li>
+      <li>resume.pdf: {{ "✓" if assets.resume_pdf else "—" }}</li>
+      <li>cover-letter.pdf: {{ "✓" if assets.cover_letter_pdf else "—" }}</li>
+    </ul>
+    <form method="post" action="{{ url_for('open_folder', slug=row.slug) }}">
+      <button type="submit">Open in Finder</button>
+    </form>
+
+    <h2>Timestamps</h2>
+    <p class="muted small">
+      Created: {{ row.created_at }}<br>
+      Updated: {{ row.updated_at }}
+    </p>
+
+    <h2>Danger</h2>
+    <form method="post" action="{{ url_for('delete', slug=row.slug) }}">
+      <button type="submit" class="danger"
+              onclick="return confirm('Delete {{ row.slug }} entirely?')">
+        Delete row
+      </button>
+    </form>
+  </aside>
+
+</section>
+
+{% endblock %}
