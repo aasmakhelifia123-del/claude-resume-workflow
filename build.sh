@@ -59,9 +59,32 @@ pandoc "$input" \
   ${pandoc_extra[@]+"${pandoc_extra[@]}"} \
   --output="$tmp_typ"
 
-# Post-process "**Title** | Dates" paragraphs into right-aligned rows.
-# (delimiter is `~` because the pattern contains both `|` and `/`)
-sed -E -i '' 's~^#strong\[([^]]+)\] \| (.+)$~#role-line[\1][\2]~' "$tmp_typ"
+# Post-process pandoc's raw Typst output before Typst ever parses it:
+#   1. "**Title** | Dates" paragraphs -> #role-line[Title][Dates]
+#   2. strip the auto-generated pandoc label right after any level-3
+#      heading that contains a pipe (meaningless once rule 3/4 turns that
+#      heading into a plain function call) -- <...> allows any characters,
+#      including umlauts, since pandoc keeps them in its auto-slugs
+#   3. "Title | Org, Location | Dates" headings -> #entry-heading-3[...]
+#      (must run before rule 4 -- a 3-part heading also matches rule 4's
+#      pattern, but greedily at the wrong pipe)
+#   4. "Title | Dates" headings -> #entry-heading[Title][Dates]
+# All four rules avoid a Typst-side content-to-string() round trip that
+# silently drops spaces adjacent to em-dashes/parens in heading titles
+# (see GitHub issue #1) -- entry-heading/entry-heading-3 take rich content
+# directly instead of reconstructing it from a flattened string.
+#
+# -i.bak (not -i '') for portability: GNU sed's -i takes only an optional
+# *joined* suffix, so a separate '' argument gets misparsed as the sed
+# script itself on GNU sed -- both GNU and BSD/macOS sed accept a joined
+# non-empty suffix like -i.bak unambiguously.
+sed -E -i.bak \
+  -e 's~^#strong\[([^]]+)\] \| (.+)$~#role-line[\1][\2]~' \
+  -e '/^=== .+ \| .+$/{N;s~\n<[^>]*>$~~}' \
+  -e 's~^=== (.+) \| (.+) \| (.+)$~#entry-heading-3[\1][\2][\3]~' \
+  -e 's~^=== (.+) \| (.+)$~#entry-heading[\1][\2]~' \
+  "$tmp_typ"
+rm -f "$tmp_typ.bak"
 
 typst compile "$tmp_typ" "$output"
 

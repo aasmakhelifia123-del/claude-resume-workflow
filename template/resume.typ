@@ -128,6 +128,33 @@ $endif$
   #text(weight: "bold")[#title] #h(1fr) #text(style: "italic", fill: muted)[#dates]
 ]
 
+// --- Entry-heading helpers ---------------------------------------------------
+//
+// Called from the generated Typst source after build.sh post-processes a
+// level-3 "Title | Dates" or "Title | Org, Location | Dates" heading line
+// into #entry-heading[...][...] / #entry-heading-3[...][...][...], BEFORE
+// Typst ever parses that line as a native heading. Each bracketed argument
+// is rich content Typst already parsed itself (from the #foo[...] call
+// syntax) -- never round-tripped through content-to-string() -- so spaces
+// adjacent to em-dashes/parens/umlauts in the title are never lost (see
+// GitHub issue #1). Visual style mirrors the level-3 heading show-rule's
+// 2-part and >=3-part branches below.
+
+#let entry-heading(title, dates) = block(above: 1em, below: 0.5em)[
+  #set text(size: size-body)
+  #text(weight: "bold")[#title]
+  #h(1fr)
+  #text(style: "italic", fill: muted)[#dates]
+]
+
+#let entry-heading-3(title, org-location, dates) = block(above: 1em, below: 0.5em)[
+  #set text(size: size-body)
+  #text(weight: "bold")[#title] #h(0.4em)
+  #text(fill: muted)[· #org-location]
+  #h(1fr)
+  #text(style: "italic", fill: muted)[#dates]
+]
+
 // Subtle links.
 #show link: it => text(fill: accent)[#it]
 
