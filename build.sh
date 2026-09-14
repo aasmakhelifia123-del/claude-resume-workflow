@@ -40,7 +40,7 @@ if [[ ! -f "$TEMPLATE" ]]; then
 fi
 
 output="${input%.md}.pdf"
-tmp_typ="$(mktemp -t resume-build).typ"
+tmp_typ="$(mktemp -t resumeXXXXXX)"
 trap 'rm -f "$tmp_typ"' EXIT
 
 # Cover letters get looser paragraph spacing — the template branches on `letter`.
